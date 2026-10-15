@@ -2900,10 +2900,11 @@ exactly the extents a request can be assigned):</p>
    offsets are data. A group wider than the widest declared width is chunked into
    descending powers of two, so every dispatch lands on a warmed pair.</li>
 </ol>
-<p>The runner picks between them once per step in <code>_build_attention_metadata</code> and records the
-choice as the <em>type</em> of <code>attn_metadata.encoder_plan</code> (<code>EncoderRectPlan</code> versus a list of
-<code>EncoderGroupPlan</code>). It has to run there rather than in <code>forward</code>: the builder does a D2H
-read and H2D conversions, which inside a traced region become graph nodes.</p>
+<p>The runner picks between them once per step in <code>_build_attention_metadata</code>, through
+<code>plan_encoder_step</code>, and records the choice as the <em>type</em> of <code>attn_metadata.encoder_plan</code>
+(<code>EncoderRectPlan</code> versus a list of <code>EncoderGroupPlan</code>). It has to run there rather than
+in <code>forward</code>: the builder does a D2H read and H2D conversions, which inside a traced
+region become graph nodes.</p>
 <p>The ragged path always stays behind the opaque <code>unified_attention_with_output</code>: it
 dispatches once per group, so tracing it in would make the block graph's structure depend on
 the step's group multiset. The rectangular path is traced <em>into</em> the block graph instead
