@@ -41,6 +41,7 @@ libsenlib during warmup). Partial rotary is used by some vision-language models 
 from functools import lru_cache
 
 import torch
+from vllm.config import get_current_vllm_config_or_none
 from vllm.logger import init_logger
 from vllm.model_executor.layers.rotary_embedding.base import (
     RotaryEmbedding,
@@ -169,6 +170,13 @@ class _SpyreRotaryMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # A model may request its cache at a wider dtype than it runs in.
+        # For example gpt-oss models ask for fp32. Done before the fallback branch
+        # below so the native forward sees the widened cache as well.
+        vllm_config = get_current_vllm_config_or_none()
+        model_config = vllm_config.model_config if vllm_config is not None else None
+        if model_config is not None and self.cos_sin_cache.dtype != model_config.dtype:
+            self.cos_sin_cache = self.cos_sin_cache.to(model_config.dtype)
         # Only neox full rotary has a Spyre kernel; gptj/interleaved and partial
         # rotary (rotary_dim < head_size) fall back to the native forward instead.
         self._spyre_native_fallback = not (
